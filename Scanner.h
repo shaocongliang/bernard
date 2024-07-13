@@ -10,6 +10,8 @@ enum TokenType {
     SEMICOLON,
     LEFT_PARENT,
     RIGHT_PARENT,
+    EXTERN,
+    DEF,
     UNSET,
 };
 
@@ -23,6 +25,11 @@ struct Token {
     Token(const std::string &val, const TokenType &t) : m_val(val), m_type(t) {}
 
     Token() : m_type(UNSET) {}
+
+    void Reset() {
+        m_type = UNSET;
+        m_val.clear();
+    }
 
     ~Token() {}
 
@@ -43,12 +50,11 @@ public:
 
     ~Scanner();
 
-    Error GetNextToken(Token &tok);
+    Error GetNextToken() const;
 
-    void PutBack(const Token &peek);
-
+    const Token &CurToken() const;
 private:
     std::string m_src;
-    std::size_t m_idx;
-    Token m_peek;
+    mutable std::size_t m_idx;
+    mutable Token m_peek;
 };

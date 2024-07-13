@@ -4,14 +4,11 @@
 TEST(Scanner, test1) {
     const std::string src("2 * 3 * 465");
     Scanner sc(src);
-    Error ret = Success;
-
     std::vector<Token> tokens;
+    Error ret = sc.GetNextToken();
     while (ret != Eof) {
-        Token t;
-        ret = sc.GetNextToken(t);
-        if (ret == Success)
-            tokens.push_back(t);
+        tokens.push_back(sc.CurToken());
+        ret = sc.GetNextToken();
     }
 
     EXPECT_EQ(tokens.size(), 5);
@@ -35,13 +32,11 @@ TEST(Scanner, test1) {
 TEST(Scanner, test2) {
     const std::string src("a=10.36;");
     Scanner sc(src);
-    Error ret = Success;
     std::vector<Token> tokens;
+    Error ret = sc.GetNextToken();
     while (ret != Eof) {
-        Token t;
-        ret = sc.GetNextToken(t);
-        if (ret == Success)
-            tokens.push_back(t);
+        tokens.push_back(sc.CurToken());
+        ret = sc.GetNextToken();
     }
 
     EXPECT_EQ(tokens.size(), 4);
@@ -61,14 +56,13 @@ TEST(Scanner, test2) {
 
 TEST(Scanner, parenthese) {
     const std::string src("(10+2);");
+
     Scanner sc(src);
-    Error ret = Success;
     std::vector<Token> tokens;
+    Error ret = sc.GetNextToken();
     while (ret != Eof) {
-        Token t;
-        ret = sc.GetNextToken(t);
-        if (ret == Success)
-            tokens.push_back(t);
+        tokens.push_back(sc.CurToken());
+        ret = sc.GetNextToken();
     }
 
     EXPECT_EQ(tokens.size(), 6);
@@ -78,6 +72,25 @@ TEST(Scanner, parenthese) {
 
     EXPECT_EQ(tokens[4].m_type, RIGHT_PARENT);
     EXPECT_EQ(tokens[4].m_val, ")");
+}
+
+TEST(Scanner, keyword) {
+    const std::string src("def foo extern;");
+
+    Scanner sc(src);
+    std::vector<Token> tokens;
+    Error ret = sc.GetNextToken();
+    while (ret != Eof) {
+        tokens.push_back(sc.CurToken());
+        ret = sc.GetNextToken();
+    }
+
+    EXPECT_EQ(tokens.size(), 4);
+
+    EXPECT_EQ(tokens[0].m_type, DEF);
+
+    EXPECT_EQ(tokens[2].m_type, EXTERN);
+    EXPECT_EQ(tokens[3].m_val, ";");
 }
 
 int main(int argc, char **argv) {

@@ -26,9 +26,21 @@ TEST(ast, case4) {
 }
 
 TEST(ast, case5) {
-    Scanner scan("2 + 3");
+    Scanner scan("2+3*4*10");
     ExprTree *ast = BuildExprTree(scan);
-    EXPECT_EQ(Calc(ast), 5);
+    EXPECT_EQ(Calc(ast), 122);
+}
+
+TEST(ast, case6) {
+    Scanner scanner("2+3");
+    scanner.GetNextToken();
+    std::unique_ptr<ExprNode> root = ParseExpression(scanner);
+    EXPECT_EQ(Calc(root.get()), 5);
+}
+
+TEST(ast, def) {
+    Scanner scanner("def fib(x y) x + z");
+    MainLoop(scanner);
 }
 
 int main(int argc, char **argv) {
