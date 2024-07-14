@@ -5,10 +5,10 @@ TEST(Scanner, test1) {
     const std::string src("2 * 3 * 465");
     Scanner sc(src);
     std::vector<Token> tokens;
-    Error ret = sc.GetNextToken();
+    Error ret = sc.NextToken();
     while (ret != Eof) {
         tokens.push_back(sc.CurToken());
-        ret = sc.GetNextToken();
+        ret = sc.NextToken();
     }
 
     EXPECT_EQ(tokens.size(), 5);
@@ -33,10 +33,10 @@ TEST(Scanner, test2) {
     const std::string src("a=10.36;");
     Scanner sc(src);
     std::vector<Token> tokens;
-    Error ret = sc.GetNextToken();
+    Error ret = sc.NextToken();
     while (ret != Eof) {
         tokens.push_back(sc.CurToken());
-        ret = sc.GetNextToken();
+        ret = sc.NextToken();
     }
 
     EXPECT_EQ(tokens.size(), 4);
@@ -59,10 +59,10 @@ TEST(Scanner, parenthese) {
 
     Scanner sc(src);
     std::vector<Token> tokens;
-    Error ret = sc.GetNextToken();
+    Error ret = sc.NextToken();
     while (ret != Eof) {
         tokens.push_back(sc.CurToken());
-        ret = sc.GetNextToken();
+        ret = sc.NextToken();
     }
 
     EXPECT_EQ(tokens.size(), 6);
@@ -79,10 +79,10 @@ TEST(Scanner, keyword) {
 
     Scanner sc(src);
     std::vector<Token> tokens;
-    Error ret = sc.GetNextToken();
+    Error ret = sc.NextToken();
     while (ret != Eof) {
         tokens.push_back(sc.CurToken());
-        ret = sc.GetNextToken();
+        ret = sc.NextToken();
     }
 
     EXPECT_EQ(tokens.size(), 4);

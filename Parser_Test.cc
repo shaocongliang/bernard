@@ -33,14 +33,17 @@ TEST(ast, case5) {
 
 TEST(ast, case6) {
     Scanner scanner("2+3");
-    scanner.GetNextToken();
+    scanner.NextToken();
     std::unique_ptr<ExprNode> root = ParseExpression(scanner);
     EXPECT_EQ(Calc(root.get()), 5);
 }
 
 TEST(ast, def) {
-    Scanner scanner("def fib(x y) x + z");
-    MainLoop(scanner);
+    std::unique_ptr<Scanner> scanner(new Scanner("def fib(x) (1+2+x)*(x+(1+2));"));
+    MainLoop(*scanner);
+
+    scanner = std::make_unique<Scanner>("a = 10");
+    MainLoop(*scanner);
 }
 
 int main(int argc, char **argv) {

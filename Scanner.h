@@ -50,7 +50,7 @@ public:
 
     ~Scanner();
 
-    Error GetNextToken() const;
+    Error NextToken() const;
 
     const Token &CurToken() const;
 private:

@@ -26,9 +26,7 @@ Scanner::Scanner(const std::string &src) : m_src(src), m_idx(0) {}
 
 Scanner::~Scanner() {}
 
-bool IsAlphaOrNumber(const char ch) { return std::isalpha(ch) || std::isalnum(ch); }
-
-Error Scanner::GetNextToken() const {
+Error Scanner::NextToken() const {
     if (m_idx == m_src.length()) return Eof;
     char ch = 0;
     m_peek.Reset();

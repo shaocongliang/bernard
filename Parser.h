@@ -11,20 +11,26 @@
 class ExprNode {
 public:
     ExprNode() = default;
-    virtual llvm::Value* CodeGen() = 0;
+
+    virtual llvm::Value *CodeGen() = 0;
+
     virtual ~ExprNode() = default;
 };
 
 class NumberNode : public ExprNode {
 public:
     explicit NumberNode(const double &num) : m_number(num) {}
-    llvm::Value* CodeGen();
+
+    llvm::Value *CodeGen();
+
     double m_number;
 };
 
 class VariableNode : public ExprNode {
 public:
     explicit VariableNode(const std::string &name) : m_name(name) {}
+
+    llvm::Value *CodeGen() override;
 
 private:
     std::string m_name;
@@ -35,15 +41,19 @@ public:
     BinaryOpNode(char op, std::unique_ptr<ExprNode> &lhs, std::unique_ptr<ExprNode> &rhs)
             : m_op(op), mp_lhs(std::move(lhs)), mp_rhs(std::move(rhs)) {}
 
+    virtual llvm::Value *CodeGen() override;
+
+    char m_op;
     std::unique_ptr<ExprNode> mp_lhs;
     std::unique_ptr<ExprNode> mp_rhs;
-    char m_op;
 };
 
-class FunctionDeclAst : public ExprNode {
+class FunctionDeclAst {
 public:
     FunctionDeclAst(const std::string &name, const std::vector<std::string> &args) : m_name(name), m_args(args) {}
 
+    llvm::Function *CodeGen();
+    std::string Name() const { return m_name; }
 private:
     std::string m_name;
     std::vector<std::string> m_args;
@@ -55,6 +65,8 @@ public:
                                                                                              m_body(std::move(body)) {
     }
 
+    llvm::Function *CodeGen();
+
 private:
     std::unique_ptr<FunctionDeclAst> m_decl;
     std::unique_ptr<ExprNode> m_body;
@@ -65,6 +77,8 @@ public:
     FunctionCallNode(const std::string &callee, std::vector<std::unique_ptr<ExprNode>> args) : m_callee(callee),
                                                                                                m_args(std::move(
                                                                                                        args)) {}
+
+    llvm::Value *CodeGen() override;
 
 private:
     std::string m_callee;

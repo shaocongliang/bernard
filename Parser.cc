@@ -1,7 +1,10 @@
 #include <Parser.h>
 #include <Scanner.h>
 #include <iostream>
-
+#include <map>
+#include <llvm/IR/LLVMContext.h>
+#include <llvm/IR/IRBuilder.h>
+#include <llvm/IR/Constants.h>
 
 int Precedence(const char &tok) {
     if (tok == gPlus || tok == gSub) return 0;
@@ -9,8 +12,115 @@ int Precedence(const char &tok) {
     else return Eof;
 }
 
+void Log(const std::string &msg) {
+    std::cout << msg << std::endl;
+}
+
 void PrintError(const std::string &error) {
     std::cout << error << std::endl;
+}
+
+std::unique_ptr<llvm::LLVMContext> g_Context;
+std::unique_ptr<llvm::IRBuilder<>> g_Builder;
+std::unique_ptr<llvm::Module> g_Module;
+std::map<std::string, llvm::Value*> g_NameValues;
+
+llvm::Value *NumberNode::CodeGen() {
+    return llvm::ConstantFP::get(*g_Context, llvm::APFloat(m_number));
+}
+
+llvm::Value* VariableNode::CodeGen() {
+    llvm::Value *pVal = g_NameValues[m_name];
+    if (!pVal)
+        std::cout << "unknown variable " << m_name << std::endl;
+    return pVal;
+}
+
+llvm::Value* BinaryOpNode::CodeGen() {
+    llvm::Value *left = mp_lhs->CodeGen();
+    llvm::Value *right = mp_rhs->CodeGen();
+    if (!left || !right) return nullptr;
+
+    switch (m_op) {
+        case gPlus:
+            return g_Builder->CreateFAdd(left, right, "addtmp");
+        case gSub:
+            return g_Builder->CreateSub(left, right, "subtmp");
+        case gMultiply:
+            return g_Builder->CreateMul(left, right, "multmp");
+        default:
+            return nullptr;
+    }
+}
+
+llvm::Function* FunctionDeclAst::CodeGen() {
+    std::vector<llvm::Type *> Doubles(m_args.size(), llvm::Type::getDoubleTy(*g_Context));
+    llvm::FunctionType *FT =
+            llvm::FunctionType::get(llvm::Type::getDoubleTy(*g_Context), Doubles, false);
+
+    llvm::Function *F =
+            llvm::Function::Create(FT, llvm::Function::ExternalLinkage, m_name, g_Module.get());
+
+    unsigned Idx = 0;
+    for (auto &Arg : F->args())
+        Arg.setName(m_args[Idx++]);
+
+    return F;
+}
+
+llvm::Function *FunctionDefAst::CodeGen() {
+    llvm::Function *func = g_Module->getFunction(m_decl->Name());
+    if (!func)
+        func = m_decl->CodeGen();
+    if (!func)
+        return nullptr;
+
+    // Create a new basic block to start insertion into.
+    llvm::BasicBlock *BB = llvm::BasicBlock::Create(*g_Context, "entry", func);
+    g_Builder->SetInsertPoint(BB);
+
+    // Record the function arguments in the NamedValues map.
+    g_NameValues.clear();
+    std::cout << "func " << func << " args size " << func->arg_size() << std::endl;
+    for (auto &Arg : func->args()) {
+        g_NameValues[std::string(Arg.getName())] = &Arg;
+    }
+
+    if (llvm::Value *RetVal = m_body->CodeGen()) {
+        g_Builder->CreateRet(RetVal);
+
+        // Validate the generated code, checking for consistency.
+        // llvm::verifyFunction(*TheFunction);
+
+        return func;
+    }
+    // Error reading body, remove function.
+    func->eraseFromParent();
+    return nullptr;
+}
+
+llvm::Value *FunctionCallNode::CodeGen() {
+    // Look up the name in the global module table.
+    llvm::Function *CalleeF = g_Module->getFunction(m_callee);
+    if (!CalleeF) {
+        printf("Unknown function referenced\n");
+        return nullptr;
+    }
+
+    // If argument mismatch error.
+    if (CalleeF->arg_size() != m_args.size()) {
+        printf("Incorrect # arguments passed\n");
+        return nullptr;
+    }
+
+    std::vector<llvm::Value*> ArgsV;
+    for (unsigned i = 0, e = m_args.size(); i != e; ++i) {
+        ArgsV.push_back(m_args[i]->CodeGen());
+        if (!ArgsV.back())
+            return nullptr;
+    }
+
+    return g_Builder->CreateCall(CalleeF, ArgsV, "calltmp");
 }
 
 void PrintToken(const Token &tok) {
@@ -30,7 +140,7 @@ ExprTree *term1(std::string op1, Scanner &scan);
 
 ExprTree *term2(ExprTree *left, Scanner &scan) {
     Token tok = scan.CurToken();
-    Error ret = scan.GetNextToken();
+    Error ret = scan.NextToken();
     if (ret == Eof) {
         PrintError("get eof.");
         return left;
@@ -49,7 +159,7 @@ ExprTree *term2(ExprTree *left, Scanner &scan) {
 ExprTree *term1(std::string op1, Scanner &scan) {
     Token tok1, tok2;
     tok1 = scan.CurToken();
-    Error ret = scan.GetNextToken();
+    Error ret = scan.NextToken();
     if (ret == Eof)
         return new ExprTree(tok1.m_val);
     tok2 = scan.CurToken();
@@ -59,10 +169,10 @@ ExprTree *term1(std::string op1, Scanner &scan) {
 }
 
 ExprTree *BuildExprTree(Scanner &scan) {
-    scan.GetNextToken();
+    scan.NextToken();
     Token tok = scan.CurToken();
     ExprTree *lhs = new ExprTree(tok.m_val);
-    scan.GetNextToken();
+    scan.NextToken();
     return term2(lhs, scan);
 }
 
@@ -96,7 +206,7 @@ std::unique_ptr<ExprNode> term2(std::unique_ptr<ExprNode> &left, const Scanner &
         PrintError("Expect operator");
         return std::move(left);
     }
-    Error ret = scan.GetNextToken();
+    Error ret = scan.NextToken();
     if (ret == Eof) {
         PrintError("get eof.");
         return std::move(left);
@@ -121,7 +231,7 @@ std::unique_ptr<ExprNode> term1(const std::string &op1, const Scanner &scanner) 
 
 std::unique_ptr<NumberNode> ParseNumber(const Scanner &scanner) {
     Token word = scanner.CurToken();
-    scanner.GetNextToken();
+    scanner.NextToken();
     return std::unique_ptr<NumberNode>(new NumberNode(std::stod(word.m_val)));
 }
 
@@ -132,19 +242,19 @@ std::unique_ptr<ExprNode> ParseExpression(const Scanner &scan) {
 }
 
 std::unique_ptr<ExprNode> ParseParentheses(const Scanner &scanner) {
-    scanner.GetNextToken();
+    scanner.NextToken();
     std::unique_ptr<ExprNode> exprNode = ParseExpression(scanner);
     if (!exprNode) return nullptr;
     if (scanner.CurToken().m_type != RIGHT_PARENT)
         PrintError("Expected )");
-    scanner.GetNextToken();
+    scanner.NextToken();
     return exprNode;
 }
 
 std::unique_ptr<ExprNode> ParseIdentifier(const Scanner &scanner) {
     Token word = scanner.CurToken();
     std::string name = word.m_val;
-    scanner.GetNextToken();
+    scanner.NextToken();
     word = scanner.CurToken();
 
     // not function call
@@ -152,7 +262,7 @@ std::unique_ptr<ExprNode> ParseIdentifier(const Scanner &scanner) {
         return std::make_unique<VariableNode>(name);
 
     // eat (
-    scanner.GetNextToken();
+    scanner.NextToken();
     std::vector<std::unique_ptr<ExprNode>> args;
     word = scanner.CurToken();
 
@@ -170,11 +280,11 @@ std::unique_ptr<ExprNode> ParseIdentifier(const Scanner &scanner) {
                 PrintError("Expect ) or , in function arg list");
                 return nullptr;
             }
-            scanner.GetNextToken();
+            scanner.NextToken();
         }
     }
 
-    scanner.GetNextToken();
+    scanner.NextToken();
     return std::make_unique<FunctionCallNode>(name, std::move(args));
 }
 
@@ -199,7 +309,7 @@ std::unique_ptr<FunctionDeclAst> ParseFunctionDecl(const Scanner &scanner) {
     }
     std::string fnName = scanner.CurToken().m_val;
 
-    scanner.GetNextToken();
+    scanner.NextToken();
 
     const Token &word = scanner.CurToken();
     if (word.m_type != LEFT_PARENT) {
@@ -208,10 +318,10 @@ std::unique_ptr<FunctionDeclAst> ParseFunctionDecl(const Scanner &scanner) {
     }
     std::vector<std::string> argNames;
 
-    scanner.GetNextToken();
+    scanner.NextToken();
     while (scanner.CurToken().m_type == VAR) {
         argNames.push_back(scanner.CurToken().m_val);
-        scanner.GetNextToken();
+        scanner.NextToken();
     }
 
     if (scanner.CurToken().m_type != RIGHT_PARENT) {
@@ -219,13 +329,13 @@ std::unique_ptr<FunctionDeclAst> ParseFunctionDecl(const Scanner &scanner) {
         return nullptr;
     }
 
-    scanner.GetNextToken();
+    scanner.NextToken();
 
     return std::make_unique<FunctionDeclAst>(fnName, argNames);
 }
 
 std::unique_ptr<FunctionDefAst> ParseFunctionDef(const Scanner &scanner) {
-    scanner.GetNextToken();
+    scanner.NextToken();
     std::unique_ptr<FunctionDeclAst> decl = ParseFunctionDecl(scanner);
     if (!decl) return nullptr;
 
@@ -237,7 +347,7 @@ std::unique_ptr<FunctionDefAst> ParseFunctionDef(const Scanner &scanner) {
 
 std::unique_ptr<FunctionDeclAst> ParseExtern(const Scanner &scanner) {
     // eat extern keyword
-    scanner.GetNextToken();
+    scanner.NextToken();
     return ParseFunctionDecl(scanner);
 }
 
@@ -253,21 +363,34 @@ void HandleExtern(const Scanner &scanner) {
     if (ParseExtern(scanner))
         std::cout << "Parsed an extern" << std::endl;
     else
-        scanner.GetNextToken();
+        scanner.NextToken();
 }
 
 void HandleFunctionDef(const Scanner &scanner) {
-    if (ParseFunctionDef(scanner))
-        std::cout << "Parsed an function definition" << std::endl;
+    std::unique_ptr<FunctionDefAst> funcDef = ParseFunctionDef(scanner);
+    if (funcDef) {
+        Log("Parsed an function definition");
+        auto funcDefIR =  funcDef->CodeGen();
+        funcDefIR->print(llvm::errs());
+    }
     else
-        scanner.GetNextToken();
+        scanner.NextToken();
 }
 
 void HandleTopLevelExpr(const Scanner &scanner) {
-    if (ParseTopLevelExpr(scanner))
-        std::cout << "Parsed an top level expr" << std::endl;
+    Log("Parsed an top level expr");
+    std::unique_ptr<FunctionDefAst> fn = ParseTopLevelExpr(scanner);
+    if (fn) {
+        llvm::Function *funcIR = fn->CodeGen();
+        if (!funcIR) return;
+        funcIR->print(llvm::errs());
+        fprintf(stderr, "\n");
+
+        // Remove the anonymous expression.
+        funcIR->eraseFromParent();
+    }
     else
-        scanner.GetNextToken();
+        scanner.NextToken();
 }
 
 double Calc(ExprNode *root) {
@@ -283,22 +406,27 @@ double Calc(ExprNode *root) {
     }
 }
 
+void InitLLVMOpt() {
+    g_Context = std::make_unique<llvm::LLVMContext>();
+    g_Module = std::make_unique<llvm::Module>("bernard jit", *g_Context);
+    g_Builder = std::make_unique<llvm::IRBuilder<>>(*g_Context);
+}
+
 void MainLoop(const Scanner &scanner) {
-    scanner.GetNextToken();
+    InitLLVMOpt();
+    scanner.NextToken();
     const Token &word = scanner.CurToken();
     while (true) {
         switch (word.m_type) {
             case UNSET:
                 return;
             case DEF:
-                HandleFunctionDef(scanner);
-                exit(0);
+                return HandleFunctionDef(scanner);
             case EXTERN:
-                HandleExtern(scanner);
-                break;
+                return HandleExtern(scanner);
             default:
-                HandleTopLevelExpr(scanner);
-                break;
+                return HandleTopLevelExpr(scanner);
         }
     }
 }
+
