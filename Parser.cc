@@ -16,10 +16,6 @@ void Log(const std::string &msg) {
     std::cout << msg << std::endl;
 }
 
-void PrintError(const std::string &error) {
-    std::cout << error << std::endl;
-}
-
 std::unique_ptr<llvm::LLVMContext> g_Context;
 std::unique_ptr<llvm::IRBuilder<>> g_Builder;
 std::unique_ptr<llvm::Module> g_Module;
@@ -141,12 +137,10 @@ ExprTree *term1(std::string op1, Scanner &scan);
 ExprTree *term2(ExprTree *left, Scanner &scan) {
     Token tok = scan.CurToken();
     Error ret = scan.NextToken();
-    if (ret == Eof) {
-        PrintError("get eof.");
+    if (ret == Eof)
         return left;
-    }
     if (tok.m_type != OPERATOR) {
-        PrintError("Expect operator");
+        Log("Expect operator");
         return nullptr;
     }
     ExprTree *operNode = new ExprTree(tok.m_val);
@@ -197,37 +191,29 @@ int Calc(ExprTree *root) {
 
 std::unique_ptr<ExprNode> ParsePrimary(const Scanner &scanner);
 
-std::unique_ptr<ExprNode> term1(const std::string &op1, const Scanner &scanner);
-
 std::unique_ptr<ExprNode> term2(std::unique_ptr<ExprNode> &left, const Scanner &scan) {
-    Token tok = scan.CurToken();
-    PrintToken(tok);
-    if (tok.m_type != OPERATOR) {
-        PrintError("Expect operator");
+    Token op1 = scan.CurToken();
+    if (op1.m_type != OPERATOR) {
+        Log("Expect operator");
         return std::move(left);
     }
+
     Error ret = scan.NextToken();
-    if (ret == Eof) {
-        PrintError("get eof.");
-        return std::move(left);
+    if (ret == Eof)
+        return nullptr;
+
+    std::unique_ptr<ExprNode> right = ParsePrimary(scan);
+    Token op2 = scan.CurToken();
+    if (op2.m_type == UNSET || Precedence(op1.m_val[0]) >= Precedence(op2.m_val[0])) {
+        std::unique_ptr<ExprNode> node = std::make_unique<BinaryOpNode>(BinaryOpNode(op1.m_val[0], left, right));
+        return term2(node, scan);
     }
-    std::unique_ptr<ExprNode> right = term1(tok.m_val, scan);
-    std::unique_ptr<ExprNode> opNode(new BinaryOpNode(tok.m_val[0], left, right));
-    return term2(opNode, scan);
-
+    else {
+        right = term2(right, scan);
+        return std::make_unique<BinaryOpNode>(op1.m_val[0], left, right);
+    }
 }
 
-std::unique_ptr<ExprNode> term1(const std::string &op1, const Scanner &scanner) {
-    Token tok2;
-    std::unique_ptr<ExprNode> node1 = ParsePrimary(scanner);
-    tok2 = scanner.CurToken();
-    PrintToken(tok2);
-    if (tok2.m_type != OPERATOR)
-        return node1;
-    if (Precedence(op1[0]) >= Precedence(tok2.m_val[0]))
-        return node1;
-    return term2(node1, scanner);
-}
 
 std::unique_ptr<NumberNode> ParseNumber(const Scanner &scanner) {
     Token word = scanner.CurToken();
@@ -246,7 +232,7 @@ std::unique_ptr<ExprNode> ParseParentheses(const Scanner &scanner) {
     std::unique_ptr<ExprNode> exprNode = ParseExpression(scanner);
     if (!exprNode) return nullptr;
     if (scanner.CurToken().m_type != RIGHT_PARENT)
-        PrintError("Expected )");
+        Log("Expected )");
     scanner.NextToken();
     return exprNode;
 }
@@ -277,7 +263,7 @@ std::unique_ptr<ExprNode> ParseIdentifier(const Scanner &scanner) {
                 break;
 
             if (word.m_val != ",") {
-                PrintError("Expect ) or , in function arg list");
+                Log("Expect ) or , in function arg list");
                 return nullptr;
             }
             scanner.NextToken();
@@ -297,14 +283,14 @@ std::unique_ptr<ExprNode> ParsePrimary(const Scanner &scanner) {
         case LEFT_PARENT:
             return ParseParentheses((scanner));
         default:
-            PrintError("unknown token");
+            Log("unknown token");
             return nullptr;
     }
 }
 
 std::unique_ptr<FunctionDeclAst> ParseFunctionDecl(const Scanner &scanner) {
     if (scanner.CurToken().m_type != VAR) {
-        PrintError("Expected function name.");
+        Log("Expected function name.");
         return nullptr;
     }
     std::string fnName = scanner.CurToken().m_val;
@@ -313,7 +299,7 @@ std::unique_ptr<FunctionDeclAst> ParseFunctionDecl(const Scanner &scanner) {
 
     const Token &word = scanner.CurToken();
     if (word.m_type != LEFT_PARENT) {
-        PrintError("Expect ( in function decl.");
+        Log("Expect ( in function decl.");
         return nullptr;
     }
     std::vector<std::string> argNames;
@@ -325,7 +311,7 @@ std::unique_ptr<FunctionDeclAst> ParseFunctionDecl(const Scanner &scanner) {
     }
 
     if (scanner.CurToken().m_type != RIGHT_PARENT) {
-        PrintError("Expect ) in function decl.");
+        Log("Expect ) in function decl.");
         return nullptr;
     }
 

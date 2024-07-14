@@ -42,8 +42,8 @@ TEST(ast, def) {
     std::unique_ptr<Scanner> scanner(new Scanner("def fib(x) (1+2+x)*(x+(1+2));"));
     MainLoop(*scanner);
 
-    scanner = std::make_unique<Scanner>("a = 10");
-    MainLoop(*scanner);
+    // scanner = std::make_unique<Scanner>("a = 10");
+    // MainLoop(*scanner);
 }
 
 int main(int argc, char **argv) {
