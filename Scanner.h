@@ -46,6 +46,7 @@ const char gPlus = '+';
 const char gSub = '-';
 const char gMultiply = '*';
 const char gDiv = '/';
+const char gLess = '<';
 
 bool IsOperator(const char tok);
 

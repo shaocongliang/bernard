@@ -10,10 +10,12 @@ const char gDot = '.';
 const char gLeftParentheses = '(';
 const char gRightParentheses = ')';
 const std::set<std::string> gKeyWords = {
-        "double",
+    "double",
 };
 
-bool IsOperator(const char tok) { return tok == gPlus || tok == gSub || tok == gMultiply || tok == gDiv; }
+bool IsOperator(const char tok) {
+    return tok == gPlus || tok == gSub || tok == gMultiply || tok == gDiv || tok == gLess;
+}
 
 Scanner::Scanner(const std::string &src) : m_src(src), m_idx(0) {}
 
@@ -26,8 +28,7 @@ Error Scanner::NextToken() const {
     do {
         ch = m_src[m_idx++];
         if (m_peek.m_type == UNSET) {
-            if (ch == gSpace)
-                continue;
+            if (ch == gSpace) continue;
             m_peek.m_val.push_back(ch);
             if (std::isdigit(ch))
                 m_peek.m_type = NUMBER;
@@ -55,8 +56,7 @@ Error Scanner::NextToken() const {
                 return UnExpect;
         } else if (m_peek.m_type == NUMBER) {
             if (!std::isdigit(ch) && ch != gDot) {
-                if (ch != gSpace)
-                    m_idx--;
+                if (ch != gSpace) m_idx--;
                 return Success;
             }
             m_peek.m_val.push_back(ch);
@@ -76,8 +76,7 @@ Error Scanner::NextToken() const {
                     m_peek.m_type = FOR;
                 else if (m_peek.m_val == "in")
                     m_peek.m_type = IN;
-                if (ch != gSpace)
-                    m_idx--;
+                if (ch != gSpace) m_idx--;
                 return Success;
             }
             m_peek.m_val.push_back(ch);
@@ -86,6 +85,4 @@ Error Scanner::NextToken() const {
     return m_peek.m_val.empty() ? Eof : Success;
 }
 
-const Token & Scanner::CurToken() const {
-    return m_peek;
-}
+const Token &Scanner::CurToken() const { return m_peek; }

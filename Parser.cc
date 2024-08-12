@@ -21,15 +21,16 @@
 
 int Precedence(const char &tok) {
     if (tok == gPlus || tok == gSub)
-        return 0;
+        return 8;
     else if (tok == gMultiply || tok == gDiv)
-        return 1;
+        return 10;
+    else if (tok == gLess)
+        return 7;
     else
         return Eof;
 }
 
 #define DLLEXPORT
-/// putchard - putchar that takes a double and returns 0.
 extern "C" DLLEXPORT double putchard(double X) {
     fputc((char)X, stderr);
     return 0;
@@ -114,6 +115,9 @@ llvm::Value *BinaryOpNode::CodeGen() {
             return g_Builder->CreateSub(left, right, "subtmp");
         case gMultiply:
             return g_Builder->CreateMul(left, right, "multmp");
+        case gLess:
+            left = g_Builder->CreateFCmpULT(left, right, "cmptmp");
+            return g_Builder->CreateUIToFP(left, llvm::Type::getDoubleTy(*g_Context), "booltmp");
         default:
             return nullptr;
     }
@@ -246,12 +250,14 @@ llvm::Function *FunctionDefAst::CodeGen() {
         g_NameValues[std::string(Arg.getName())] = &Arg;
     }
 
-    if (llvm::Value *RetVal = m_body->CodeGen()) {
-        g_Builder->CreateRet(RetVal);
+    llvm::Value *retVal = m_body->CodeGen();
+    if (retVal) {
+        g_Builder->CreateRet(retVal);
 
         g_FuncPassM->run(*func, *g_FuncAnalyM);
         return func;
     }
+    printf("function body ir generation fail.\n");
     // Error reading body, remove function.
     func->eraseFromParent();
     return nullptr;
@@ -347,9 +353,8 @@ std::unique_ptr<ExprNode> ParsePrimary(const Scanner &scanner);
 
 std::unique_ptr<ExprNode> term2(std::unique_ptr<ExprNode> &left, const Scanner &scan) {
     Token op1 = scan.CurToken();
-    if (op1.m_type != OPERATOR) {
+    if (op1.m_type != OPERATOR)
         return std::move(left);
-    }
 
     Error ret = scan.NextToken();
     if (ret == Eof) return nullptr;
@@ -441,7 +446,6 @@ std::unique_ptr<ExprNode> ParseForLoop(const Scanner &scan) {
         step = ParseExpression(scan);
         if (!step) return nullptr;
     }
-
     if (scan.CurToken().m_type != IN) {
         Log("Expect in after for.");
         return nullptr;
@@ -557,7 +561,7 @@ std::unique_ptr<FunctionDefAst> ParseFunctionDef(const Scanner &scanner) {
 
     std::unique_ptr<ExprNode> expr = ParseExpression(scanner);
     if (expr) return std::make_unique<FunctionDefAst>(std::move(decl), expr);
-    printf("parse expression in funcetion define fail.\n");
+    printf("parse expression in function define fail.\n");
     return nullptr;
 }
 
@@ -603,7 +607,6 @@ void HandleFunctionDef(const Scanner &scanner) {
 }
 
 void HandleTopLevelExpr(const Scanner &scanner) {
-    Log("Parsed an top level expr");
     std::unique_ptr<FunctionDefAst> fn = ParseTopLevelExpr(scanner);
     if (fn) {
         llvm::Function *funcIR = fn->CodeGen();

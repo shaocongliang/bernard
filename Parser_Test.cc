@@ -49,6 +49,16 @@ TEST(ast, cond) {
     MainLoop(scanner);
 }
 
+TEST(ast, forLoop) {
+    std::string src("extern putchard(char); \
+     def printStar(n) \
+        for i = 1, i < n, 1.0 in \
+            putchard(42); \
+    ");
+    Scanner scan(src);
+    MainLoop(scan);
+}
+
 int main(int argc, char **argv) {
     ::testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();
