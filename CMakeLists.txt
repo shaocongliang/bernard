@@ -208,4 +208,4 @@ add_executable(Scanner_Test Scanner_Test.cc Scanner.cc)
 target_link_libraries(Scanner_Test gtest)
 
 add_executable(Parser_Test Parser_Test.cc ${SRCs})
-target_link_libraries(Parser_Test gtest ${LLVM_LIBs} tinfo)
+target_link_libraries(Parser_Test gtest ${LLVM_LIBs} tinfo z)

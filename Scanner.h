@@ -12,6 +12,11 @@ enum TokenType {
     RIGHT_PARENT,
     EXTERN,
     DEF,
+    IF,
+    THEN,
+    ELSE,
+    FOR,
+    IN,
     UNSET,
 };
 

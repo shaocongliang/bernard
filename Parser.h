@@ -48,6 +48,37 @@ public:
     std::unique_ptr<ExprNode> mp_rhs;
 };
 
+class ConditionNode : public ExprNode {
+public:
+    ConditionNode(std::unique_ptr<ExprNode> &cond, std::unique_ptr<ExprNode> &then, std::unique_ptr<ExprNode> &el) :
+            m_cond(std::move(cond)), m_then(std::move(then)), m_else(std::move(el)) {}
+
+    llvm::Value *CodeGen() override;
+
+private:
+    std::unique_ptr<ExprNode> m_cond;
+    std::unique_ptr<ExprNode> m_then;
+    std::unique_ptr<ExprNode> m_else;
+};
+
+class ForLoopNode : public ExprNode {
+public:
+    ForLoopNode(const std::string &varName, std::unique_ptr<ExprNode> start, std::unique_ptr<ExprNode> end,
+                std::unique_ptr<ExprNode> step,
+                std::unique_ptr<ExprNode> body) : m_valName(varName), mp_start(std::move(start)),
+                                                   mp_end(std::move(end)),
+                                                   mp_step(std::move(step)), mp_body(std::move(body)) {}
+
+    llvm::Value *CodeGen() override;
+
+private:
+    std::string m_valName;
+    std::unique_ptr<ExprNode> mp_start;
+    std::unique_ptr<ExprNode> mp_end;
+    std::unique_ptr<ExprNode> mp_step;
+    std::unique_ptr<ExprNode> mp_body;
+};
+
 class FunctionDeclAst {
 public:
     FunctionDeclAst(const std::string &name, const std::vector<std::string> &args) : m_name(name), m_args(args) {}

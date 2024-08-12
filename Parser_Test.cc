@@ -39,11 +39,14 @@ TEST(ast, case6) {
 }
 
 TEST(ast, def) {
-    std::unique_ptr<Scanner> scanner(new Scanner("def fib(x) (1+2+x)*(x+(1+2));"));
+    std::unique_ptr<Scanner> scanner(new Scanner("def fib(x) (1+2+x)*(x+2+1);"));
     MainLoop(*scanner);
+}
 
-    // scanner = std::make_unique<Scanner>("a = 10");
-    // MainLoop(*scanner);
+TEST(ast, cond) {
+    std::string src("extern foo(); extern bar(); def fib(x) if x then foo() else bar();");
+    Scanner scanner(src);
+    MainLoop(scanner);
 }
 
 int main(int argc, char **argv) {
