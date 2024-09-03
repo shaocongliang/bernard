@@ -21,68 +21,68 @@ Scanner::Scanner(const std::string &src) : m_src(src), m_idx(0) {}
 
 Scanner::~Scanner() {}
 
-Error Scanner::NextToken() const {
+Token Scanner::NextToken() const {
     char ch = 0;
     m_peek.Reset();
-    if (m_idx == m_src.length()) return Eof;
+    if (m_idx == m_src.length()) return m_peek;
     do {
         ch = m_src[m_idx++];
-        if (m_peek.m_type == UNSET) {
+        if (m_peek.m_type == TokenType::Eof) {
             if (ch == gSpace) continue;
             m_peek.m_val.push_back(ch);
             if (std::isdigit(ch))
-                m_peek.m_type = NUMBER;
+                m_peek.m_type = TokenType::NUMBER;
             else if (std::isalpha(ch))
-                m_peek.m_type = VAR;
+                m_peek.m_type =  TokenType::VAR;
             else if (IsOperator(ch)) {
-                m_peek.m_type = OPERATOR;
-                return Success;
+                m_peek.m_type = TokenType::OPERATOR;
+                return m_peek;
             } else if (ch == gEqual) {
-                m_peek.m_type = OPERATOR;
-                return Success;
+                m_peek.m_type = TokenType::OPERATOR;
+                return m_peek;
             } else if (ch == gSemicolon) {
-                m_peek.m_type = SEMICOLON;
-                return Success;
+                m_peek.m_type = TokenType::SEMICOLON;
+                return m_peek;
             } else if (ch == gLeftParentheses) {
-                m_peek.m_type = LEFT_PARENT;
-                return Success;
+                m_peek.m_type = TokenType::LEFT_PARENT;
+                return m_peek;
             } else if (ch == gRightParentheses) {
-                m_peek.m_type = RIGHT_PARENT;
-                return Success;
+                m_peek.m_type = TokenType::RIGHT_PARENT;
+                return m_peek;
             } else if (ch == gSemicolon) {
-                m_peek.m_type = SEMICOLON;
-                return Success;
+                m_peek.m_type = TokenType::SEMICOLON;
+                return m_peek;
             } else
-                return UnExpect;
-        } else if (m_peek.m_type == NUMBER) {
+                return m_peek;
+        } else if (m_peek.m_type == TokenType::NUMBER) {
             if (!std::isdigit(ch) && ch != gDot) {
                 if (ch != gSpace) m_idx--;
-                return Success;
+                return m_peek;
             }
             m_peek.m_val.push_back(ch);
-        } else if (m_peek.m_type == VAR) {
+        } else if (m_peek.m_type == TokenType::VAR) {
             if (!std::isalnum(ch)) {
                 if (m_peek.m_val == "extern")
-                    m_peek.m_type = EXTERN;
+                    m_peek.m_type = TokenType::EXTERN;
                 else if (m_peek.m_val == "def")
-                    m_peek.m_type = DEF;
+                    m_peek.m_type = TokenType::DEF;
                 else if (m_peek.m_val == "if")
-                    m_peek.m_type = IF;
+                    m_peek.m_type = TokenType::IF;
                 else if (m_peek.m_val == "then")
-                    m_peek.m_type = THEN;
+                    m_peek.m_type = TokenType::THEN;
                 else if (m_peek.m_val == "else")
-                    m_peek.m_type = ELSE;
+                    m_peek.m_type = TokenType::ELSE;
                 else if (m_peek.m_val == "for")
-                    m_peek.m_type = FOR;
+                    m_peek.m_type = TokenType::FOR;
                 else if (m_peek.m_val == "in")
-                    m_peek.m_type = IN;
+                    m_peek.m_type = TokenType::IN;
                 if (ch != gSpace) m_idx--;
-                return Success;
+                return m_peek;
             }
             m_peek.m_val.push_back(ch);
         }
     } while (m_idx < m_src.length());
-    return m_peek.m_val.empty() ? Eof : Success;
+    return m_peek;
 }
 
 const Token &Scanner::CurToken() const { return m_peek; }

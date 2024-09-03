@@ -2,7 +2,7 @@
 
 #include <string>
 
-enum TokenType {
+enum class TokenType {
     VAR,
     NUMBER,
     OPERATOR,
@@ -17,22 +17,16 @@ enum TokenType {
     ELSE,
     FOR,
     IN,
-    UNSET,
-};
-
-enum Error {
-    Success = 0,
-    Eof = -1,
-    UnExpect = -2,
+    Eof,
 };
 
 struct Token {
     Token(const std::string &val, const TokenType &t) : m_val(val), m_type(t) {}
 
-    Token() : m_type(UNSET) {}
+    Token() : m_type(TokenType::Eof) {}
 
     void Reset() {
-        m_type = UNSET;
+        m_type = TokenType::Eof;
         m_val.clear();
     }
 
@@ -56,9 +50,8 @@ public:
 
     ~Scanner();
 
-    Error NextToken() const;
-
-    const Token &CurToken() const;
+    Token NextToken() const;
+    const Token& CurToken() const;
 private:
     std::string m_src;
     mutable std::size_t m_idx;
